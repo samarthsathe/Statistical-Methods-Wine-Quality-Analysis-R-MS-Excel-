@@ -1,0 +1,157 @@
+---
+title: "Assignment 3b"
+author: "Samarth Sathe"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,message=FALSE,warning=FALSE)
+library(tidyverse)
+library(here)
+library(moments)
+library(stats4)
+```
+
+```{r}
+#Importing the required libraries
+library(tidyverse)
+library(here)
+library(stats4)
+```
+
+***Importing the dataset***
+
+```{r include=TRUE}
+file_path1 <- here("Data", "winequality-red.csv")
+data_red_wine <- read.csv(file_path1, sep = ";", header = TRUE, stringsAsFactors = FALSE)
+attach(data_red_wine)
+data_length <- nrow(data_red_wine)
+```
+
+**Question 1: Suppose the population mean of the variable “density” is μ , do the following inferences:**
+
+* **Question 1e: Can we use a normal distribution to model “density”? If yes, what are the maximum likelihood estimates of the mean and standard deviation? Please provide their standard errors as well. **
+
+Yes, a normal distribution can be used to model “density”. This is evident in the histogram below.
+
+Because the values are too small, the function MLE for the initial "density" values is unstable. The curve can be made to fit these values by ten-folding the variable "density". Divide the estimated values by 10 to get the accurate values after calculating the estimations and standard errors.
+
+```{r include=TRUE}
+hist(density)
+```
+
+```{r include=TRUE}
+density_v2 <- density*10
+density_v2
+```
+
+```{r include=TRUE}
+hist(density_v2)
+```
+
+```{r include=TRUE}
+sd_density_v2 <- sd(density_v2)
+
+minuslog.lik <- function(mu, sigma) {
+  log.lik <- 0
+  for(i in 1:length(data_red_wine$density)) {
+    log.lik <- log.lik + log(dnorm(density_v2[i], mean = mu, sd = sigma))
+  }
+  return(-log.lik)
+}
+
+minuslog.lik(80, 20)
+
+minuslog.lik(100, 30)
+
+minuslog.lik(0, 1)
+
+est <- mle(minuslog = minuslog.lik,
+                   start = list(mu = mean(density_v2),
+                                sigma = sd(density_v2)))
+
+summary(est)
+
+#Returning back to old values by dividing by 10
+summary(est)
+
+```
+
+From the estimate for density, the MLE estimate of the mean is 9.9674 (rounded to four decimal places); however, we need to divide this number by ten to ensure accuracy. Therefore, the MLE estimate of the mean for density is 0.9967 (rounded to four decimal places). The MLE estimate of sigma, or the standard deviation, is 0.0189 (rounded to four decimal places); however we need to divide this number by ten to ensure accuracy. Therefore, the MLE estimate of the standard deviation for density is 0.0019 (rounded to four decimal places).
+
+The standard error for the mean is 0.0005 (rounded to four decimal places); however, divided by ten to ensure accuracy, the error is 0.0001 (rounded to four decimal places). The standard error for the standard deviation is 0.0003 (rounded to four decimal places); however, divided by ten to ensure accuracy, the error is 0.0000 (rounded to four decimal places).
+
+
+**Question 2: Suppose the population mean of the variable “residual sugar” is μ , answer the following questions.**
+
+* **Question 2d: Can we use a normal distribution to model “residual sugar”? If no, what distribution do you think can approximate its empirical distribution? What parameters are needed to characterize such a distribution? what are their maximum likelihood estimates? Please provide their standard errors as well. **
+
+The histogram of residual sugar is heavily skewed to the right. With that said, a lognormal distribution can be used to approximate empirical distribution.
+
+```{r include=TRUE}
+hist(log(residual.sugar))
+```
+
+```{r include=TRUE}
+minuslog.lik <- function(mu, sigma) {
+  log.lik <- 0
+  for(i in 1:length(data_red_wine$residual.sugar)) {
+    log.lik = log.lik + log(dlnorm(residual.sugar[i], meanlog=mu, sdlog=sigma))
+  }
+  return(-log.lik)
+}
+
+est_sugar <- mle(minuslog=minuslog.lik,
+                 start = list(mu=log(mean(residual.sugar)), sigma=log(sd(residual.sugar))))
+
+summary(est_sugar)
+```
+From the above function, the estimate for the mean is 0.8502 (rounded to four decimal places), and its standard error is 0.0089 (rounded to four decimal places). The estimate for the variability is 0.3573 (rounded to four decimal places), and its standard error is 0.0063 (rounded to four decimal places).
+
+```{r include=TRUE}
+# Check the similarity
+# Simulate 1599 observations from the fitted lognormal distribution using the MLEs as the parameter values
+
+sugar.simulate <- rlnorm(length(data_red_wine$residual.sugar), meanlog = 0.8502, sdlog = 0.3573)
+
+par(mfrow = c(1, 2))
+hist(sugar.simulate, breaks = seq(from = 0, to = 20, by = 1))
+hist(residual.sugar, breaks = seq(from = 0, to = 20, by = 1))
+```
+
+
+**Question 3: Suppose the population mean of the variable “residual sugar” is μ , answer the following questions.**
+
+* **Question 3d: What is the maximum likelihood estimate of p and its standard error? **
+
+Creating a new column excellent where quality>=7
+```{r include=TRUE}
+new_wine_data<- data_red_wine %>%
+  mutate(excellent = as.numeric(quality >= 7))
+head(new_wine_data, 5)
+attach(new_wine_data)
+```
+
+```{r include=TRUE}
+hist(new_wine_data$excellent)
+```
+
+```{r include=TRUE}
+minuslog.lik <- function(p) {
+  log.lik <- 0
+  for(i in 1:length(new_wine_data$excellent)) {
+    log.lik <- log.lik + log(dbinom(excellent[i], size = 1, prob = p))
+  }
+  return(-log.lik)
+}
+
+est <- stats4::mle(minuslog = minuslog.lik,
+                   start = list(p = mean(excellent)))
+
+summary(est)
+```
+**Maximum likelihood estimation**
+
+  
+Because the above histogram portrays a binary variable, the histogram only shows values of zero or one. From the above function, the estimate for the proportion of p is 0.1357 (rounded to four decimal places), and its standard error is 0.0086 (rounded to four decimal places).
